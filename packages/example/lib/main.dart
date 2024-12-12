@@ -29,31 +29,7 @@ class Home extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  ExpansionTile(
-                    title: const Text('Vision APIs'),
-                    children: [
-                      CustomCard('Face Detection', FaceDetectorView()),
-                      if (Platform.isAndroid)
-                        CustomCard(
-                            'Face Mesh Detection', FaceMeshDetectorView()),
-                    ],
-                  ),
-                  SizedBox(
-                    height: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      body: FaceDetectorView()
     );
   }
 }
