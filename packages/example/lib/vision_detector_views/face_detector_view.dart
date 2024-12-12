@@ -56,7 +56,6 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     final Uint8List? bytes = inputImage.bytes;
     final metadata = inputImage.metadata;
     img.Image? image = createImage(bytes!, metadata!);
-    image = img.copyResize(image!, width: 224, height: 224);
 
 
     final faces = await _faceDetector.processImage(inputImage);
@@ -128,6 +127,7 @@ img.Image? cropImage(img.Image? image, Rect? squareRect) {
   int height = squareRect.height.round();
   width = width.abs();
   height = height.abs();
+  print('original Image width: ${image.width}, height: ${image.height}');
   print('Cropping Image: x: $x, y: $y, width: $width, height: $height');
   return img.copyCrop(image, x: x, y: y, width: width, height: height);
 }
