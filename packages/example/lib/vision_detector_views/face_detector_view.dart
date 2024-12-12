@@ -86,14 +86,18 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     if (squareRect != null) {
       image = cropImage(image, squareRect);
       if (image != null) {
-        print('Cropped Image width: ${image.width}, height: ${image.height}');
+        //print('Cropped Image width: ${image.width}, height: ${image.height}');
       
-        final input = await getCnnInput(image);
-        print('input shape: ${input.shape}');
-        print(_interpreter.getInputTensors()[0]);
+        final input = convertToFloat32List(await getCnnInput(image)).reshape([1,224,224,3]);
+        
+        // print('input shape: ${input.shape}');
+        // print('input dtype: ${input.runtimeType}'); // TensorFlow의 float32인가 확인
+
+        // print(_interpreter.getInputTensors()[0]);
+        // print(_interpreter.getOutputTensors()[0]);
         // Run inference and get the output
-        final output = List.filled(1 * 1000, 0.0).reshape([1, 1000]); // Assuming output size 1000
-        print('output shape: ${output.shape}');
+        final output = List.filled(1 * 1, 0.0).reshape([1, 1]); // Assuming output size 1000
+        // print('output shape: ${output.shape}');
         _interpreter.run(input, output);
 
         setState(() {
@@ -123,10 +127,13 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
       setState(() {});
     }
   }
-
+Float32List convertToFloat32List(List<List<List<double>>> input) {
+  final flattened = input.expand((row) => row.expand((col) => col)).toList();
+  return Float32List.fromList(flattened.map((e) => e.toDouble()).toList());
+}
 
 Future<List<List<List<double>>>> getCnnInput(img.Image image) async {
-  print('cnn input');
+  //print('cnn input');
   // 이미지를 [224, 224] 크기로 리사이즈합니다.
   img.Image resizedImage = img.copyResize(image, width: 224, height: 224);
 
@@ -138,15 +145,15 @@ Future<List<List<List<double>>>> getCnnInput(img.Image image) async {
   for (int y = 0; y < resizedImage.height; y++) {
     for (int x = 0; x < resizedImage.width; x++) {
       Pixel pixel = resizedImage.getPixel(x, y);
-      double r = pixel[0] / 255;
-      double g = pixel[1] / 255;
-      double b = pixel[2] / 255;
+      double r = pixel[0] / 1;
+      double g = pixel[1] / 1;
+      double b = pixel[2] / 1;
       result[y][x][0] = r; // Red
       result[y][x][1] = g; // Green
       result[y][x][2] = b; // Blue
     }
   }
-  print(result.shape);
+  //print(result.shape);
   return result;
 }
 
