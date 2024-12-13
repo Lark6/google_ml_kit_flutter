@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +29,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   bool _isBusy = false;
   CustomPaint? _customPaint;
   String? _text;
+  int flag = 0;
   var _cameraLensDirection = CameraLensDirection.front;
 
   @override
@@ -39,6 +42,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     try {
       _interpreter = await Interpreter.fromAsset(
         'assets/MobileNetV2(200).tflite',
+        options: InterpreterOptions()..threads = 4,
         );
       _isolateInterpreter = await IsolateInterpreter.create(address: _interpreter.address);
       print('Model loaded successfully');
@@ -57,13 +61,35 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
 
   @override
   Widget build(BuildContext context) {
-    return DetectorView(
-      title: 'Face Detector',
-      customPaint: _customPaint,
-      text: _text,
-      onImage: _processImage,
-      initialCameraLensDirection: _cameraLensDirection,
-      onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
+    return Stack(
+      children: [
+        DetectorView(
+          title: 'Face Detector',
+          customPaint: _customPaint,
+          text: _text,
+          onImage: _processImage,
+          initialCameraLensDirection: _cameraLensDirection,
+          onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
+        ),
+        Center(
+          child: Text(_text ?? 'no data', style: TextStyle(color: flag == 0? Colors.white : Colors.greenAccent, fontSize: 32)),
+        ),
+        // if (_imageDebug != null)
+        // Align(
+        //   alignment: Alignment.centerLeft,
+        //   child: Container(
+        //     width: 256, // 미리보기 이미지의 가로 크기
+        //     height: 256, // 미리보기 이미지의 세로 크기
+        //     decoration: BoxDecoration(
+        //       border: Border.all(color: Colors.white, width: 2),
+        //     ),
+        //     child: Image.memory(
+        //       Uint8List.fromList(img.encodePng(_imageDebug!)),
+        //       fit: BoxFit.contain,
+        //     ),
+        //   ),
+        // ),
+      ],
     );
   }
 
@@ -78,18 +104,25 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     }
 
     final squareRect = _getSquareRect(faces, inputImage.metadata!.size);
-    final image = decodeYUV420SP(inputImage);
+
+    final image = Platform.isAndroid ? decodeYUV420SP(inputImage): decodeBGRA8888(inputImage);
     if (squareRect != null) {
       final croppedImage = cropImage(image, squareRect);
+      //print(croppedImage?.height);
       if (croppedImage != null) {
         //final input = convertToFloat32List(await getCnnInput(croppedImage)).reshape([1, 224, 224, 3]);
         final input = await getCnnInput2(croppedImage);
         final output = Float32List(1 * 1).reshape([1, 1]);
         await _isolateInterpreter.run(input, output);
-        
+              
         setState(() {
-          _text = 'Inference Result: ${output[0]}';
-          print('Inference Result: ${(output[0][0]).toStringAsFixed(7)}');
+          if (output[0][0] > 0.5) {
+            flag = 1;
+          } else {
+            flag = 0;
+          }
+          _text = output[0][0].toStringAsFixed(2);
+          //print('Inference Result: ${(output[0][0]).toStringAsFixed(7)}');
         });
       }
     }
@@ -120,7 +153,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
       if (bottomLip != null && nose != null && leftMouth != null && rightMouth != null) {
         final centerX = (leftMouth.x + rightMouth.x + bottomLip.x + nose.x) / 4;
         final centerY = (leftMouth.y + rightMouth.y + bottomLip.y + nose.y) / 4;
-        final squareSize = imageSize.width * 0.2;
+        final squareSize = imageSize.width * 0.15;
         final squareLeft = (centerX - squareSize / 2);
         final squareTop = (centerY - squareSize / 2);
 
@@ -142,6 +175,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     Float32List inputBytes = Float32List(1 * 224 * 224 * 3);
 
 
+
     final range = resizedImage.getRange(0, 0, 224, 224);
     int pixelIndex = 0;
     while (range.moveNext()) {
@@ -153,6 +187,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
       inputBytes[pixelIndex++] = pixel.g / 255.0;
       inputBytes[pixelIndex++] = pixel.b / 255.0;
     }
+
     final input = inputBytes.reshape([1, 224, 224, 3]);
     return input;
   }
