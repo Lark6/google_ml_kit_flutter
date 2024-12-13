@@ -39,7 +39,12 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   // .tflite 모델을 로드하는 함수
   Future<void> _loadModel() async {
     try {
-      _interpreter = await Interpreter.fromAsset('assets/food_resnet50.tflite');  // your_model.tflite 파일 경로
+
+        // final GpuDelegate gpuDelegate = GpuDelegate( options: GpuDelegateOptions( allowPrecisionLoss: true, ), ); 
+        // var interpreterOptions = InterpreterOptions() ..addDelegate(gpuDelegate);
+
+
+      _interpreter = await Interpreter.fromAsset('assets/MobileNetV2(200).tflite');  // your_model.tflite 파일 경로
       print("Model loaded successfully.");
     } catch (e) {
       print("Error loading model: $e");
@@ -105,7 +110,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
         _interpreter.run(input, output);
 
         setState(() {
-          _text = 'Inference Result: ${output[0]}';
+          _text = 'Inference Result: ${output}';
           print(_text);
         });
       }
@@ -262,9 +267,6 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     return input;
   }
 
-
-  
-
   Float32List convertToFloat32List(List<List<List<double>>> input) {
   final flattened = input.expand((row) => row.expand((col) => col)).toList();
   return Float32List.fromList(flattened.map((e) => e.toDouble()).toList());
@@ -283,9 +285,9 @@ Future<List<List<List<double>>>> getCnnInput(img.Image image) async {
   for (int y = 0; y < resizedImage.height; y++) {
     for (int x = 0; x < resizedImage.width; x++) {
       Pixel pixel = resizedImage.getPixel(x, y);
-      double r = pixel[0] / 1;
-      double g = pixel[1] / 1;
-      double b = pixel[2] / 1;
+      double r = pixel[0] / 255.0;
+      double g = pixel[1] / 255.0;
+      double b = pixel[2] / 255.0;
       result[y][x][0] = r; // Red
       result[y][x][1] = g; // Green
       result[y][x][2] = b; // Blue

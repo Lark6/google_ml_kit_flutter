@@ -71,3 +71,4 @@ flutter:
     - assets/ml/
     - assets/images/
     - assets/food_resnet50.tflite
+    - assets/MobileNetV2(200).tflite
