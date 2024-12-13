@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:google_ml_kit_example/img_util.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -21,6 +22,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   );
 
   late Interpreter _interpreter;
+  late IsolateInterpreter _isolateInterpreter;
   bool _canProcess = true;
   bool _isBusy = false;
   CustomPaint? _customPaint;
@@ -35,7 +37,10 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
 
   Future<void> _loadModel() async {
     try {
-      _interpreter = await Interpreter.fromAsset('assets/MobileNetV2(200).tflite');
+      _interpreter = await Interpreter.fromAsset(
+        'assets/MobileNetV2(200).tflite',
+        );
+      _isolateInterpreter = await IsolateInterpreter.create(address: _interpreter.address);
       print('Model loaded successfully');
     } catch (e) {
       print('Error loading model: $e');
@@ -73,16 +78,18 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     }
 
     final squareRect = _getSquareRect(faces, inputImage.metadata!.size);
-    final image = createImage(inputImage.bytes!, inputImage.metadata!);
-    if (squareRect != null && image != null) {
+    final image = decodeYUV420SP(inputImage);
+    if (squareRect != null) {
       final croppedImage = cropImage(image, squareRect);
       if (croppedImage != null) {
-        final input = convertToFloat32List(await getCnnInput(croppedImage)).reshape([1, 224, 224, 3]);
-        final output = List.filled(1 * 1, 0.0).reshape([1, 1]);
-        _interpreter.run(input, output);
-
+        //final input = convertToFloat32List(await getCnnInput(croppedImage)).reshape([1, 224, 224, 3]);
+        final input = await getCnnInput2(croppedImage);
+        final output = Float32List(1 * 1).reshape([1, 1]);
+        await _isolateInterpreter.run(input, output);
+        
         setState(() {
           _text = 'Inference Result: ${output[0]}';
+          print('Inference Result: ${(output[0][0]).toStringAsFixed(7)}');
         });
       }
     }
@@ -123,30 +130,31 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
     return null;
   }
 
-  img.Image? createImage(Uint8List bytes, InputImageMetadata metadata) {
-    try {
-      int width = metadata.size.width.toInt();
-      int height = metadata.size.height.toInt();
-      Uint8List rgbaBytes = convertYUV420ToRGBA(bytes, width, height);
-
-      return img.Image.fromBytes(
-        width: width,
-        height: height,
-        bytes: rgbaBytes.buffer,
-        numChannels: 4,
-      );
-    } catch (e) {
-      print('Error creating image: $e');
-      return null;
-    }
-  }
-
   img.Image? cropImage(img.Image image, Rect rect) {
     return img.copyCrop(image, x: rect.left.toInt(), y: rect.top.toInt(), width: rect.width.toInt(), height: rect.height.toInt());
   }
 
   Float32List convertToFloat32List(List<List<List<double>>> input) {
     return Float32List.fromList(input.expand((row) => row.expand((col) => col)).toList());
+  }
+  Future<List> getCnnInput2(img.Image image) async{
+    img.Image resizedImage = img.copyResize(image, width: 224, height: 224);
+    Float32List inputBytes = Float32List(1 * 224 * 224 * 3);
+
+
+    final range = resizedImage.getRange(0, 0, 224, 224);
+    int pixelIndex = 0;
+    while (range.moveNext()) {
+      final pixel = range.current;
+      pixel.r = pixel.maxChannelValue - pixel.r; // Invert the red channel.
+      pixel.g = pixel.maxChannelValue - pixel.g; // Invert the green channel.
+      pixel.b = pixel.maxChannelValue - pixel.b; // Invert the blue channel.
+      inputBytes[pixelIndex++] = pixel.r / 255.0;
+      inputBytes[pixelIndex++] = pixel.g / 255.0;
+      inputBytes[pixelIndex++] = pixel.b / 255.0;
+    }
+    final input = inputBytes.reshape([1, 224, 224, 3]);
+    return input;
   }
 
   Future<List<List<List<double>>>> getCnnInput(img.Image image) async {
@@ -161,15 +169,17 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   // 픽셀 데이터를 [0, 1] 범위로 정규화하여 배열에 저장합니다.
   for (int y = 0; y < resizedImage.height; y++) {
     for (int x = 0; x < resizedImage.width; x++) {
-      img.Pixel pixel = resizedImage.getPixel(x, y);
-      double r = pixel[0] / 255.0;
-      double g = pixel[1] / 255.0;
-      double b = pixel[2] / 255.0;
+      img.Color pixel = resizedImage.getPixel(x, y);
+      double r = pixel.r / 255.0;
+      double g = pixel.g / 255.0;
+      double b = pixel.b / 255.0;
       result[y][x][0] = r; // Red
       result[y][x][1] = g; // Green
       result[y][x][2] = b; // Blue
     }
   }
+  //img.Pixel pixel = resizedImage.getPixel(100, 100);
+  //print(pixel);
   //print(result.shape);
   return result;
 }
