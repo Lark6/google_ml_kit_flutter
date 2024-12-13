@@ -23,11 +23,10 @@ dependencies:
   google_mlkit_commons: ^0.9.0
   tflite_flutter: ^0.11.0
   image: ^4.3.0
-  flutter_image_converter: ^0.4.1
-
+  flutter_image_compress: ^2.3.0
 
 dev_dependencies:
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
 
@@ -36,3 +35,5 @@ flutter:
   assets:
     - assets/ml/
     - assets/images/
+    - assets/food_resnet50.tflite
+    - assets/MobileNetV2(200).tflite
