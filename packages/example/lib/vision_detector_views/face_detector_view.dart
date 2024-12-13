@@ -63,25 +63,23 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-      
-        DetectorView(
-          title: 'Face Detector',
-          customPaint: _customPaint,
-          text: _text,
-          onImage: _processImage,
-          initialCameraLensDirection: _cameraLensDirection,
-          onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
-        ),
-        Center(child: Text(_text ?? 'no text', style: TextStyle(color: Colors.white))),
-      ],
+    return DetectorView(
+      title: 'Face Detector',
+      customPaint: _customPaint,
+      text: _text,
+      onImage: _processImage,
+      initialCameraLensDirection: _cameraLensDirection,
+      onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
     );
   }
 
   Future<void> _processImage(InputImage inputImage) async {
     if (!_canProcess || _isBusy) return;
     _isBusy = true;
+
+    setState(() {
+      _text = '';  // 갱신할 텍스트 초기화
+    });
 
     final Uint8List? bytes = inputImage.bytes;
     final metadata = inputImage.metadata;
