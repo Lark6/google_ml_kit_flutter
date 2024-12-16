@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -74,21 +73,6 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
         Center(
           child: Text(_text ?? 'no data', style: TextStyle(color: flag == 0? Colors.white : Colors.greenAccent, fontSize: 32)),
         ),
-        // if (_imageDebug != null)
-        // Align(
-        //   alignment: Alignment.centerLeft,
-        //   child: Container(
-        //     width: 256, // 미리보기 이미지의 가로 크기
-        //     height: 256, // 미리보기 이미지의 세로 크기
-        //     decoration: BoxDecoration(
-        //       border: Border.all(color: Colors.white, width: 2),
-        //     ),
-        //     child: Image.memory(
-        //       Uint8List.fromList(img.encodePng(_imageDebug!)),
-        //       fit: BoxFit.contain,
-        //     ),
-        //   ),
-        // ),
       ],
     );
   }
@@ -111,7 +95,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
       //print(croppedImage?.height);
       if (croppedImage != null) {
         //final input = convertToFloat32List(await getCnnInput(croppedImage)).reshape([1, 224, 224, 3]);
-        final input = await getCnnInput2(croppedImage);
+        final input = await getCnnInput(croppedImage);
         final output = Float32List(1 * 1).reshape([1, 1]);
         await _isolateInterpreter.run(input, output);
               
@@ -170,7 +154,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   Float32List convertToFloat32List(List<List<List<double>>> input) {
     return Float32List.fromList(input.expand((row) => row.expand((col) => col)).toList());
   }
-  Future<List> getCnnInput2(img.Image image) async{
+  Future<List> getCnnInput(img.Image image) async{
     img.Image resizedImage = img.copyResize(image, width: 224, height: 224);
     Float32List inputBytes = Float32List(1 * 224 * 224 * 3);
 
@@ -190,63 +174,5 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
 
     final input = inputBytes.reshape([1, 224, 224, 3]);
     return input;
-  }
-
-  Future<List<List<List<double>>>> getCnnInput(img.Image image) async {
-  //print('cnn input');
-  // 이미지를 [224, 224] 크기로 리사이즈합니다.
-  img.Image resizedImage = img.copyResize(image, width: 224, height: 224);
-
-  // 결과를 저장할 배열을 초기화합니다.
-  List<List<List<double>>> result = List.generate(224, 
-    (_) => List.generate(224, 
-      (_) => List.filled(3, 0.0)));
-  // 픽셀 데이터를 [0, 1] 범위로 정규화하여 배열에 저장합니다.
-  for (int y = 0; y < resizedImage.height; y++) {
-    for (int x = 0; x < resizedImage.width; x++) {
-      img.Color pixel = resizedImage.getPixel(x, y);
-      double r = pixel.r / 255.0;
-      double g = pixel.g / 255.0;
-      double b = pixel.b / 255.0;
-      result[y][x][0] = r; // Red
-      result[y][x][1] = g; // Green
-      result[y][x][2] = b; // Blue
-    }
-  }
-  //img.Pixel pixel = resizedImage.getPixel(100, 100);
-  //print(pixel);
-  //print(result.shape);
-  return result;
-}
-
-  Uint8List convertYUV420ToRGBA(Uint8List bytes, int width, int height) {
-    final int frameSize = width * height;
-    final Uint8List rgba = Uint8List(4 * frameSize);
-
-    for (int j = 0, yp = 0; j < height; j++) {
-      int uvp = frameSize + (j >> 1) * width, u = 0, v = 0;
-      for (int i = 0; i < width; i++, yp++) {
-        int y = 0xff & bytes[yp];
-        if ((i & 1) == 0) {
-          v = 0xff & bytes[uvp++];
-          u = 0xff & bytes[uvp++];
-        }
-        y = y < 16 ? 16 : y;
-
-        int r = (1192 * (y - 16) + 1634 * (v - 128)) >> 10;
-        int g = (1192 * (y - 16) - 833 * (v - 128) - 400 * (u - 128)) >> 10;
-        int b = (1192 * (y - 16) + 2066 * (u - 128)) >> 10;
-
-        r = r.clamp(0, 255);
-        g = g.clamp(0, 255);
-        b = b.clamp(0, 255);
-
-        rgba[yp * 4] = r;
-        rgba[yp * 4 + 1] = g;
-        rgba[yp * 4 + 2] = b;
-        rgba[yp * 4 + 3] = 255;
-      }
-    }
-    return rgba;
   }
 }
