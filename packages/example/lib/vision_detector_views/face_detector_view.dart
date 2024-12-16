@@ -31,6 +31,11 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   int flag = 0;
   var _cameraLensDirection = CameraLensDirection.front;
 
+  int _frameCount = 0; // 프레임 카운터
+  int _startTime = DateTime.now().millisecondsSinceEpoch; // FPS 측정 시작 시간
+  int _currentFPS = 0; // 1초 동안의 FPS
+
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +78,17 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
         Center(
           child: Text(_text ?? 'no data', style: TextStyle(color: flag == 0? Colors.white : Colors.greenAccent, fontSize: 32)),
         ),
+        Positioned(
+        top: 20,
+        right: 20,
+        child: Text(
+          'FPS: 7', // FPS 표시
+          style: TextStyle(
+            color: Colors.yellow,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),)
       ],
     );
   }
@@ -80,6 +96,7 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   Future<void> _processImage(InputImage inputImage) async {
     if (!_canProcess || _isBusy) return;
     _isBusy = true;
+
 
     final faces = await _faceDetector.processImage(inputImage);
     if (faces.isEmpty) {
@@ -121,6 +138,16 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
           squareRect: squareRect,
         ),
       );
+
+      // FPS 계산
+      _frameCount++; // 프레임 수 증가
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      if (currentTime - _startTime >= 1000) {
+        // 1초가 지나면 FPS 업데이트
+        _currentFPS = _frameCount;
+        _frameCount = 0; // 프레임 카운터 초기화
+        _startTime = currentTime; // 시작 시간 갱신
+      }
     });
 
     _isBusy = false;
